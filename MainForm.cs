@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
 namespace NetworkScanner
 {
@@ -744,12 +745,15 @@ namespace NetworkScanner
             portScanProgress.Value = 0;
             portScanProgress.Maximum = (int)(nudEndPort.Value - nudStartPort.Value + 1);
 
+            var cancellationTokenSource = new CancellationTokenSource();
+
             try
             {
                 var results = await _scanner.ScanPortRangeAsync(
                     txtTargetIP.Text,
                     (int)nudStartPort.Value,
-                    (int)nudEndPort.Value);
+                    (int)nudEndPort.Value,
+                    cancellationTokenSource.Token);
 
                 foreach (var result in results)
                 {
