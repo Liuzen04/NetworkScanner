@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -278,7 +278,7 @@ namespace NetworkScanner
         /// <summary>
         /// Quét một dải cổng cụ thể
         /// </summary>
-        public async Task<List<PortScanResult>> ScanPortRangeAsync(string ipAddress, int startPort, int endPort)
+        public async Task<List<PortScanResult>> ScanPortRangeAsync(string ipAddress, int startPort, int endPort, CancellationToken token)
         {
             if (_isScanning)
             {
@@ -375,6 +375,16 @@ namespace NetworkScanner
             };
 
             return services.ContainsKey(port) ? services[port] : "Không xác định";
+        }
+
+        public async Task ScanSpecificPortAsync(string ipAddress, int port, CancellationToken token)
+        {
+            await ScanPortRangeAsync(ipAddress, port, port, token);
+        }
+
+        internal async Task<IEnumerable<object>> ScanPortRangeAsync(string text, int value1, int value2)
+        {
+            throw new NotImplementedException();
         }
     }
 
