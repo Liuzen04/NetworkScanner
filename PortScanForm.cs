@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace NetworkScanner
 {
@@ -22,6 +23,7 @@ namespace NetworkScanner
         private NumericUpDown nudStartPort;
         private NumericUpDown nudEndPort;
         private CheckBox chkCommonPorts;
+        private CancellationTokenSource _portScanCancellationTokenSource;
 
         public PortScanForm(string targetIP, NetworkScannerCore scanner)
         {
@@ -174,6 +176,8 @@ namespace NetworkScanner
             btnStop.Enabled = true;
             lblStatus.Text = "Đang quét...";
 
+            _portScanCancellationTokenSource = new CancellationTokenSource();
+
             try
             {
                 if (chkCommonPorts.Checked)
@@ -184,19 +188,27 @@ namespace NetworkScanner
                         993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 8080, 8443
                     };
 
-                    // Thay vì quét từng cổng, gọi ScanPortRangeAsync cho từng cổng
                     var allResults = new List<PortScanResult>();
+                    int scannedPortsCount = 0;
 
                     foreach (var port in commonPorts)
                     {
-                        if (!_scanner.IsScanning) break; // Kiểm tra nếu đã dừng
-
-                        var results = await _scanner.ScanPortRangeAsync(_targetIP, port, port);
-                        allResults.AddRange(results);
-                        
-                        // Cập nhật tiến trình
-                        progressBar.Value = (int)((float)allResults.Count / commonPorts.Length * 100);
-                        lblStatus.Text = $"Đang quét cổng {port}...";
+                        _portScanCancellationTokenSource.Token.ThrowIfCancellationRequested();
+                        try
+                        {
+                            var results = await _scanner.ScanPortRangeAsync(_targetIP, port, port, _portScanCancellationTokenSource.Token);
+                            allResults.AddRange(results);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        finally
+                        {
+                            scannedPortsCount++;
+                            progressBar.Value = (int)((float)scannedPortsCount / commonPorts.Length * 100);
+                            lblStatus.Text = $"Đang quét cổng {port} ({scannedPortsCount}/{commonPorts.Length})...";
+                        }
                     }
 
                     foreach (var result in allResults)
@@ -215,7 +227,7 @@ namespace NetworkScanner
                     lblStatus.Text = $"Đang quét cổng {startPort} - {endPort}...";
                     progressBar.Maximum = endPort - startPort + 1;
 
-                    var results = await _scanner.ScanPortRangeAsync(_targetIP, startPort, endPort);
+                    var results = await _scanner.ScanPortRangeAsync(_targetIP, startPort, endPort, _portScanCancellationTokenSource.Token);
 
                     foreach (var result in results)
                     {
@@ -225,6 +237,10 @@ namespace NetworkScanner
                     progressBar.Value = progressBar.Maximum;
                     lblStatus.Text = $"Hoàn tất. Tìm thấy {results.Count} cổng mở";
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                lblStatus.Text = "Đã dừng quét.";
             }
             catch (InvalidOperationException ex)
             {
@@ -238,48 +254,24 @@ namespace NetworkScanner
             {
                 btnScan.Enabled = true;
                 btnStop.Enabled = false;
-                if (!_scanner.IsScanning)
-                {
-                    lblStatus.Text = "Đã dừng quét";
-                }
+                _portScanCancellationTokenSource?.Dispose();
             }
         }
 
         private void BtnStop_Click(object sender, EventArgs e)
         {
-            _scanner.StopPortScan();
-            btnStop.Enabled = false;
+            _portScanCancellationTokenSource?.Cancel();
             lblStatus.Text = "Đang dừng quét...";
-        }
-
-        private async Task<bool> IsPortOpenAsync(string ip, int port)
-        {
-            try
-            {
-                using (var tcp = new System.Net.Sockets.TcpClient())
-                {
-                    var connectTask = tcp.ConnectAsync(ip, port);
-                    var timeoutTask = Task.Delay(1000);
-                    var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-                    return completedTask == connectTask && tcp.Connected;
-                }
-            }
-            catch
-            {
-                return false;
-            }
-
         }
 
         private void AddPortResult(int port, bool isOpen)
         {
-            if (!isOpen) return;
-
+            var status = isOpen ? "Mở" : "Đóng";
             var serviceName = GetServiceName(port);
             var description = GetServiceDescription(serviceName);
 
-            var row = dgvResults.Rows.Add(port, "Mở", serviceName, description);
-            dgvResults.Rows[row].DefaultCellStyle.ForeColor = Color.Green;
+            var rowIndex = dgvResults.Rows.Add(port, status, serviceName, description);
+            dgvResults.Rows[rowIndex].DefaultCellStyle.ForeColor = isOpen ? Color.Green : Color.Red;
         }
 
         private string GetServiceName(int port)
@@ -289,11 +281,10 @@ namespace NetworkScanner
                 { 21, "FTP" }, { 22, "SSH" }, { 23, "Telnet" }, { 25, "SMTP" },
                 { 53, "DNS" }, { 80, "HTTP" }, { 110, "POP3" }, { 139, "NetBIOS" },
                 { 143, "IMAP" }, { 443, "HTTPS" }, { 445, "SMB" }, { 993, "IMAPS" },
-                { 995, "POP3S" }, { 1433, "SQL Server" }, { 1521, "Oracle" },
-                { 3306, "MySQL" }, { 3389, "RDP" }, { 5432, "PostgreSQL" },
-                { 5900, "VNC" }, { 8080, "HTTP Alt" }, { 8443, "HTTPS Alt" }
+                { 995, "POP3S" }, { 1433, "SQL Server" }, { 1521, "Oracle" }, { 3306, "MySQL" },
+                { 3389, "RDP" }, { 5432, "PostgreSQL" }, { 5900, "VNC" }, { 8080, "HTTP Alt" },
+                { 8443, "HTTPS Alt" }
             };
-
             return services.ContainsKey(port) ? services[port] : "Không xác định";
         }
 
@@ -301,19 +292,27 @@ namespace NetworkScanner
         {
             var descriptions = new Dictionary<string, string>
             {
-                { "FTP", "File Transfer Protocol" },
+                { "FTP", "File Transfer Protocol - Truyền tệp" },
                 { "SSH", "Secure Shell - Kết nối bảo mật" },
-                { "Telnet", "Kết nối từ xa không bảo mật" },
-                { "SMTP", "Gửi thư điện tử" },
-                { "DNS", "Phân giải tên miền" },
-                { "HTTP", "Giao thức Web" },
-                { "HTTPS", "Giao thức Web bảo mật" },
-                { "RDP", "Remote Desktop - Màn hình từ xa Windows" },
-                { "MySQL", "Cơ sở dữ liệu MySQL" },
-                { "SMB", "Chia sẻ tệp Windows" }
+                { "Telnet", "Terminal Network - Kết nối từ xa" },
+                { "SMTP", "Simple Mail Transfer Protocol - Gửi email" },
+                { "DNS", "Domain Name System - Phân giải tên miền" },
+                { "HTTP", "HyperText Transfer Protocol - Web" },
+                { "POP3", "Post Office Protocol - Nhận email" },
+                { "NetBIOS", "Network Basic Input/Output System" },
+                { "IMAP", "Internet Message Access Protocol - Nhận email" },
+                { "HTTPS", "HTTP Secure - Web bảo mật" },
+                { "SMB", "Server Message Block - Chia sẻ tệp Windows" },
+                { "SQL Server", "Microsoft SQL Server Database" },
+                { "Oracle", "Oracle Database" },
+                { "MySQL", "MySQL Database Server" },
+                { "RDP", "Remote Desktop Protocol - Màn hình từ xa" },
+                { "PostgreSQL", "PostgreSQL Database" },
+                { "VNC", "Virtual Network Computing - Điều khiển máy tính từ xa" },
+                { "HTTP Alt", "HTTP Alternate - Web thay thế" },
+                { "HTTPS Alt", "HTTPS Alternate - Web bảo mật thay thế" }
             };
-
-            return descriptions.ContainsKey(serviceName) ? descriptions[serviceName] : "";
+            return descriptions.ContainsKey(serviceName) ? descriptions[serviceName] : "Không có mô tả";
         }
     }
 }
