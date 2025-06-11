@@ -11,9 +11,9 @@ Network Scanner là ứng dụng Windows giúp quét và phân tích các thiế
 - Giao diện trực quan, dễ sử dụng, hỗ trợ tiếng Việt
 
 ## Hình ảnh minh họa
-![Giao diện chính](images/screenshot_main.png)
-![Quét cổng](images/screenshot_portscan.png)
-![Mã Hóa AES](images/screenshot_portscan.png)
+![Giao diện chính](images/GiaoDienChinh.png)
+![Quét cổng](images/GiaoDienQuetCong.png)
+![Mã Hóa AES](images/GiaoDienMaHoaDuLieuAES.png)
 
 ## Hướng dẫn cài đặt
 1. Yêu cầu: Windows 7/8/10/11, .NET Framework 4.7.2 trở lên
