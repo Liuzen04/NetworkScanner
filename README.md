@@ -38,6 +38,6 @@ Network Scanner là ứng dụng Windows giúp quét và phân tích các thiế
   - Nhấn "Xuất báo cáo" để lưu kết quả quét ra file
 
 ## Thông tin tác giả
-- Họ tên: Phạm Trần Kim Long - Thanh Hải
+- Họ tên: Phạm Trần Kim Long - Nguyễn Thanh Hải
 - Email: Kimlong2004@gmail.com
 - Github: https://github.com/Liuzen004
