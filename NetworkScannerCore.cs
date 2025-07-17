@@ -229,23 +229,31 @@ namespace NetworkScanner
         {
             try
             {
-                using (var tcp = new TcpClient())
+                var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
                 {
-                    var connectTask = tcp.ConnectAsync(ipAddress, port);
-                    var timeoutTask = Task.Delay(2000);
+                    Blocking = false
+                };
 
-                    var completedTask = await Task.WhenAny(connectTask, timeoutTask);
+                var connectTask = socket.ConnectAsync(IPAddress.Parse(ipAddress), port);
+                var timeoutTask = Task.Delay(300); // rút ngắn thời gian quét port 
 
-                    if (completedTask == connectTask && tcp.Connected)
-                    {
-                        return true;
-                    }
+                var completedTask = await Task.WhenAny(connectTask, timeoutTask);
+
+                if (completedTask == connectTask && socket.Connected)
+                {
+                    socket.Dispose();
+                    return true;
                 }
+
+                socket.Dispose();
+            }
+            catch (SocketException)
+            {
+                // Cổng đóng hoặc unreachable
             }
             catch (Exception ex)
             {
-                // Log lỗi nếu cần
-                Console.WriteLine($"Lỗi khi kiểm tra cổng {port}: {ex.Message}");
+                Console.WriteLine($"Lỗi khi quét cổng {port}: {ex.Message}");
             }
 
             return false;
@@ -287,7 +295,7 @@ namespace NetworkScanner
 
             StartPortScan();
             var results = new List<PortScanResult>();
-            var semaphore = new SemaphoreSlim(10); // Giảm từ 50 xuống 10
+            var semaphore = new SemaphoreSlim(50); // 
             var tasks = new List<Task>();
 
             try
