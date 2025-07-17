@@ -562,12 +562,7 @@ namespace NetworkScanner
             }
         }
 
-        private void EncryptMenuItem_Click(object sender, EventArgs e)
-        {
-            var encryptForm = new EncryptionForm();
-            encryptForm.ShowDialog();
-        }
-
+    
         private void LoadNetworkInfo()
         {
             rtbNetworkInfo.Clear();
