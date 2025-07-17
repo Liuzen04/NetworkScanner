@@ -6,15 +6,12 @@ Network Scanner là ứng dụng Windows giúp quét và phân tích các thiế
 ## Tính năng chính
 - Quét toàn bộ thiết bị trong mạng LAN (IP, MAC, Hostname, thời gian phản hồi)
 - Quét cổng (port) cho từng thiết bị, hỗ trợ quét dải cổng hoặc các cổng phổ biến
-- Mã hóa/giải mã dữ liệu bằng AES
 - Xuất báo cáo kết quả quét
 - Giao diện trực quan, dễ sử dụng, hỗ trợ tiếng Việt
 
 ## Hình ảnh minh họa
 ![Giao diện chính](images/GiaoDienChinh.png)
 ![Quét cổng](images/GiaoDienQuetCong.png)
-![Mã Hóa AES](images/GiaoDienMaHoaDuLieuAES.png)
-
 ## Hướng dẫn cài đặt
 1. Yêu cầu: Windows 7/8/10/11, .NET Framework 4.7.2 trở lên
 2. Clone hoặc tải source code từ GitHub:
@@ -32,8 +29,6 @@ Network Scanner là ứng dụng Windows giúp quét và phân tích các thiế
 - **Quét cổng:**
   - Chọn thiết bị, nhấn "Quét cổng"
   - Chọn dải cổng hoặc chỉ quét cổng phổ biến, nhấn "Bắt đầu quét"
-- **Mã hóa dữ liệu:**
-  - Vào menu "Công cụ" > "Mã hóa dữ liệu" để sử dụng chức năng mã hóa/giải mã
 - **Xuất báo cáo:**
   - Nhấn "Xuất báo cáo" để lưu kết quả quét ra file
 
