@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -54,7 +54,7 @@ namespace NetworkScanner
                 Size = new Size(150, 23),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            cmbAlgorithm.Items.AddRange(new[] { "AES", "RSA (Đang phát triển)" });
+            cmbAlgorithm.Items.AddRange(new[] { "AES" });
             cmbAlgorithm.SelectedIndex = 0;
 
             var lblPassword = new Label
@@ -222,12 +222,7 @@ namespace NetworkScanner
                     {
                         txtOutput.Text = AESEncryption.Decrypt(txtInput.Text, txtPassword.Text);
                     }
-                }
-                else
-                {
-                    MessageBox.Show("Thuật toán RSA đang được phát triển!", "Thông báo",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                }               
             }
             catch (Exception ex)
             {
