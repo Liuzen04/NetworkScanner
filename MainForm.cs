@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
@@ -52,6 +52,34 @@ namespace NetworkScanner
             SetupEventHandlers();
             LoadNetworkInfo();
         }
+        private string GetLocalBaseIP()
+        {
+            foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus == OperationalStatus.Up &&
+                    (ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet ||
+                     ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211))
+                {
+                    var ipProps = ni.GetIPProperties();
+                    // Chỉ lấy card có gateway (thường là card đang kết nối mạng)
+                    if (ipProps.GatewayAddresses.Any(g => !g.Address.ToString().Equals("0.0.0.0")))
+                    {
+                        foreach (UnicastIPAddressInformation ip in ipProps.UnicastAddresses)
+                        {
+                            if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                            {
+                                var segments = ip.Address.ToString().Split('.');
+                                if (segments.Length == 4)
+                                {
+                                    return $"{segments[0]}.{segments[1]}.{segments[2]}";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return "192.168.1";
+        }
 
         private void InitializeComponent()
         {
@@ -99,7 +127,7 @@ namespace NetworkScanner
             lblBaseIP.Size = new Size(100, 23);
 
             txtBaseIP = new TextBox();
-            txtBaseIP.Text = "192.168.1";
+            txtBaseIP.Text = GetLocalBaseIP();
             txtBaseIP.Location = new Point(125, 27);
             txtBaseIP.Size = new Size(150, 23);
 
@@ -196,7 +224,6 @@ namespace NetworkScanner
             dgvDevices.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             dgvDevices.EnableHeadersVisualStyles = false;
 
-            // Thêm các cột
             // Thêm các cột
             dgvDevices.Columns.Add("Status", "Trạng thái");
             dgvDevices.Columns.Add("IPAddress", "Địa chỉ IP");      // Chú ý: IPAddress
@@ -562,7 +589,12 @@ namespace NetworkScanner
             }
         }
 
-    
+        private void EncryptMenuItem_Click(object sender, EventArgs e)
+        {
+            var encryptForm = new EncryptionForm();
+            encryptForm.ShowDialog();
+        }
+
         private void LoadNetworkInfo()
         {
             rtbNetworkInfo.Clear();
