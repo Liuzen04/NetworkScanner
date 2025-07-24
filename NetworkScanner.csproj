@@ -46,11 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AESEncryption.cs" />
     <Compile Include="DeviceDetailsForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="EncryptionForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="MainForm.cs">
