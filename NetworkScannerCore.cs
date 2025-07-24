@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -191,13 +192,56 @@ namespace NetworkScanner
             try
             {
                 var hostEntry = await Dns.GetHostEntryAsync(ipAddress);
-                return hostEntry.HostName;
+                if (!string.IsNullOrEmpty(hostEntry.HostName))
+                {
+                    return hostEntry.HostName;
+                }
             }
             catch
             {
-                return "Không xác định";
+                //Bỏ qua lỗi và fallback
             }
+
+            // Nếu DNS thất bại, thử bằng NetBIOS (nbtstat)
+            try
+            {
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "nbtstat",
+                        Arguments = $"-A {ipAddress}",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                string output = await process.StandardOutput.ReadToEndAsync();
+                process.WaitForExit();
+
+                var lines = output.Split('\n');
+                foreach (var line in lines)
+                {
+                    if (line.Contains("<00>") && line.Contains("UNIQUE"))
+                    {
+                        var parts = line.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length > 0)
+                        {
+                            return parts[0]; 
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Không tìm thấy qua nbtstat
+            }
+
+            return "Không xác định";
         }
+
 
         /// <summary>
         /// Quét các cổng phổ biến
@@ -205,7 +249,9 @@ namespace NetworkScanner
         private async Task<List<int>> ScanCommonPortsAsync(string ipAddress)
         {
             var openPorts = new List<int>();
-            var commonPorts = new[] { 21, 22, 23, 25, 80, 110, 139, 443, 445, 3389, 8080 };
+            var commonPorts = new[]
+            { 21, 22, 23, 25, 53, 80, 110, 139, 143, 443, 445,
+          993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 8080, 8443 };
 
             var tasks = commonPorts.Select(port => Task.Run(async () =>
             {
@@ -295,7 +341,7 @@ namespace NetworkScanner
 
             StartPortScan();
             var results = new List<PortScanResult>();
-            var semaphore = new SemaphoreSlim(50); // 
+            var semaphore = new SemaphoreSlim(50); 
             var tasks = new List<Task>();
 
             try
@@ -356,6 +402,78 @@ namespace NetworkScanner
             }
 
             return results.OrderBy(r => r.Port).ToList();
+        }
+
+        /// <summary>
+        /// Quét một dải cổng UDP cụ thể
+        /// </summary>
+        public async Task<List<PortScanResult>> ScanUdpPortRangeAsync(string ipAddress, int startPort, int endPort, CancellationToken token)
+        {
+            var results = new List<PortScanResult>();
+            var semaphore = new SemaphoreSlim(50);
+            var tasks = new List<Task>();
+            for (int port = startPort; port <= endPort; port++)
+            {
+                if (token.IsCancellationRequested)
+                    break;
+                int currentPort = port;
+                var task = Task.Run(async () =>
+                {
+                    await semaphore.WaitAsync();
+                    try
+                    {
+                        if (token.IsCancellationRequested)
+                            return;
+                        bool isOpen = await IsUdpPortOpenAsync(ipAddress, currentPort);
+                        if (isOpen)
+                        {
+                            var result = new PortScanResult
+                            {
+                                Port = currentPort,
+                                IsOpen = true,
+                                ServiceName = GetServiceName(currentPort)
+                            };
+                            lock (_lockObject)
+                            {
+                                results.Add(result);
+                            }
+                        }
+                    }
+                    catch { }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }, token);
+                tasks.Add(task);
+            }
+            await Task.WhenAll(tasks);
+            return results.OrderBy(r => r.Port).ToList();
+        }
+
+        /// <summary>
+        /// Kiểm tra cổng UDP có phản hồi không
+        /// </summary>
+        private async Task<bool> IsUdpPortOpenAsync(string ipAddress, int port, int timeout = 1000)
+        {
+            try
+            {
+                using (var udpClient = new UdpClient())
+                {
+                    udpClient.Client.SendTimeout = timeout;
+                    udpClient.Client.ReceiveTimeout = timeout;
+                    var remoteEP = new IPEndPoint(IPAddress.Parse(ipAddress), port);
+                    byte[] sendBytes = new byte[] { 0x00 };
+                    await udpClient.SendAsync(sendBytes, sendBytes.Length, remoteEP);
+                    var receiveTask = udpClient.ReceiveAsync();
+                    if (await Task.WhenAny(receiveTask, Task.Delay(timeout)) == receiveTask)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
         }
 
         /// <summary>
