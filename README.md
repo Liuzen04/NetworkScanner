@@ -23,8 +23,8 @@ Network Scanner là ứng dụng Windows giúp quét và phân tích các thiế
 
 ## Hướng dẫn sử dụng
 - **Quét thiết bị:**
-  - Nhập dải IP cần quét (ví dụ: 192.168.1.1 đến 192.168.1.254)
-  - Để biết địa chỉ IP thiết bị của bạn là gì -> Run Terminal -> Nhập lệnh Ipconfig và tìm địa chỉ IPv4 (ví dụ 192.168.x.x)
+  - Máy tính cần kết nối mạng cục bộ, phần mềm sẽ tự động nhận IP của máy rồi từ đó suy ra dải IP cơ sở.
+  - Chọn phạm vi cần quét, ví dụ từ 1 -> 200...
   - Nhấn "Bắt đầu quét" để tìm các thiết bị đang online
 - **Quét cổng:**
   - Chọn thiết bị, nhấn "Quét cổng"
